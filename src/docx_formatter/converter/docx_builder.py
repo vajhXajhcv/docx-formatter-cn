@@ -18,8 +18,8 @@ from latex2mathml.converter import convert as latex_to_mathml
 
 from .markdown_parser import (
     BlockElement, BlockHeading, BlockParagraph, BlockFormula,
-    BlockTable, BlockCode, BlockListItem, BlockImage, BlockBlank, BlockPageBreak,
-    InlineElement, InlineText, InlineBold, InlineItalic, InlineFormula,
+    BlockTable, BlockCode, BlockQuote, BlockListItem, BlockImage, BlockBlank, BlockPageBreak,
+    InlineElement, InlineText, InlineBold, InlineItalic, InlineUnderline, InlineStrikethrough, InlineFormula,
     InlineCitation, InlineImage, InlineLink,
 )
 from ..config import TemplateConfig
@@ -203,6 +203,27 @@ def _render_block(block: BlockElement, ctx: dict):
             run.font.name = config.font.code
             run.font.size = Pt(10)
             _set_no_proof(run)
+    elif isinstance(block, BlockQuote):
+        para = doc.add_paragraph()
+        para.paragraph_format.left_indent = Cm(0.5 * block.level)
+        _render_inline(block.inline, para, ctx)
+        # Add left border to paragraph
+        pPr = para._element.get_or_add_pPr()
+        pBdr = pPr.find(qn("w:pBdr"))
+        if pBdr is None:
+            pBdr = OxmlElement("w:pBdr")
+            pPr.append(pBdr)
+        left = OxmlElement("w:left")
+        left.set(qn("w:val"), "single")
+        left.set(qn("w:sz"), "24")
+        left.set(qn("w:space"), "4")
+        left.set(qn("w:color"), "CCCCCC")
+        pBdr.append(left)
+        # Light gray shading
+        shd = OxmlElement("w:shd")
+        shd.set(qn("w:val"), "clear")
+        shd.set(qn("w:fill"), "F5F5F5")
+        pPr.append(shd)
     elif isinstance(block, BlockListItem):
         para = doc.add_paragraph()
         marker = block.marker
@@ -242,6 +263,14 @@ def _render_inline(inline: List[InlineElement], para, ctx: dict, skip_first_spac
         elif isinstance(elem, InlineItalic):
             run = para.add_run(elem.text)
             run.italic = True
+            _apply_body_font(run, config)
+        elif isinstance(elem, InlineUnderline):
+            run = para.add_run(elem.text)
+            run.underline = True
+            _apply_body_font(run, config)
+        elif isinstance(elem, InlineStrikethrough):
+            run = para.add_run(elem.text)
+            run.font.strike = True
             _apply_body_font(run, config)
         elif isinstance(elem, InlineFormula):
             _insert_inline_formula(para, elem.latex)
@@ -421,23 +450,46 @@ def _render_table(block: BlockTable, ctx: dict):
     _set_east_asia_font(run, config.font.chinese)
 
 
+def _resolve_image_path(url: str, base_dir: str) -> Path:
+    """Resolve image path, downloading from network if necessary."""
+    from urllib.parse import urlparse
+    from urllib.request import urlopen
+    import tempfile
+
+    parsed = urlparse(url)
+    if parsed.scheme in ("http", "https"):
+        # Download to temp file
+        suffix = Path(parsed.path).suffix or ".jpg"
+        fd, tmp = tempfile.mkstemp(suffix=suffix)
+        os.close(fd)
+        try:
+            with urlopen(url, timeout=30) as resp:
+                with open(tmp, "wb") as f:
+                    f.write(resp.read())
+            return Path(tmp)
+        except Exception:
+            Path(tmp).unlink(missing_ok=True)
+            raise
+    else:
+        base = Path(base_dir) if base_dir else Path(".")
+        p = base / url
+        if p.exists():
+            return p
+        raise FileNotFoundError(f"Image not found: {p}")
+
+
 def _render_image(block: BlockImage, ctx: dict):
     doc = ctx["doc"]
     config = ctx["config"]
     ctx["figure_counter"][0] += 1
 
-    base = Path(ctx.get("image_base_dir") or ".")
-    img_path = base / block.url
-
     para = doc.add_paragraph()
     para.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
     para.paragraph_format.first_line_indent = Cm(0)
     try:
-        if img_path.exists():
-            run = para.add_run()
-            run.add_picture(str(img_path), width=Inches(4.0))
-        else:
-            para.add_run(f"[Image not found: {block.url}]")
+        img_path = _resolve_image_path(block.url, ctx.get("image_base_dir") or "")
+        run = para.add_run()
+        run.add_picture(str(img_path), width=Inches(4.0))
     except Exception as e:
         para.add_run(f"[Image error: {e}]")
 
@@ -455,14 +507,10 @@ def _render_image(block: BlockImage, ctx: dict):
 
 
 def _render_inline_image(paragraph, elem: InlineImage, ctx: dict):
-    base = Path(ctx.get("image_base_dir") or ".")
-    img_path = base / elem.url
     try:
-        if img_path.exists():
-            run = paragraph.add_run()
-            run.add_picture(str(img_path), width=Inches(4.0))
-        else:
-            paragraph.add_run(f"[Image: {elem.url}]")
+        img_path = _resolve_image_path(elem.url, ctx.get("image_base_dir") or "")
+        run = paragraph.add_run()
+        run.add_picture(str(img_path), width=Inches(4.0))
     except Exception as e:
         paragraph.add_run(f"[Image error: {e}]")
 

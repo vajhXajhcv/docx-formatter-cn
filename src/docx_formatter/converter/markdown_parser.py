@@ -35,6 +35,16 @@ class InlineItalic:
 
 
 @dataclass
+class InlineUnderline:
+    text: str
+
+
+@dataclass
+class InlineStrikethrough:
+    text: str
+
+
+@dataclass
 class InlineFormula:
     latex: str
 
@@ -56,7 +66,7 @@ class InlineLink:
     url: str
 
 
-InlineElement = InlineText | InlineBold | InlineItalic | InlineFormula | InlineCitation | InlineImage | InlineLink
+InlineElement = InlineText | InlineBold | InlineItalic | InlineUnderline | InlineStrikethrough | InlineFormula | InlineCitation | InlineImage | InlineLink
 
 
 @dataclass
@@ -90,6 +100,12 @@ class BlockCode:
 
 
 @dataclass
+class BlockQuote:
+    level: int
+    inline: List[InlineElement]
+
+
+@dataclass
 class BlockListItem:
     level: int
     marker: str
@@ -115,7 +131,7 @@ class BlockPageBreak:
 
 BlockElement = (
     BlockHeading | BlockParagraph | BlockFormula | BlockTable |
-    BlockCode | BlockListItem | BlockImage | BlockBlank | BlockPageBreak
+    BlockCode | BlockQuote | BlockListItem | BlockImage | BlockBlank | BlockPageBreak
 )
 
 
@@ -189,17 +205,41 @@ def parse_markdown(text: str) -> List[BlockElement]:
                 i = new_i
                 continue
 
-        # List item
-        list_m = re.match(r"^(\s*)([-+*]|\d+[.、)）])\s+(.*)$", line)
+        # Quote block
+        quote_m = re.match(r"^(>\s*)(.*)$", line)
+        if quote_m:
+            quote_lines = []
+            level = 0
+            while i < len(lines):
+                qm = re.match(r"^(>+\s*)(.*)$", lines[i])
+                if not qm:
+                    break
+                level = len(qm.group(1).replace(" ", "").replace(">", ">"))
+                quote_lines.append(qm.group(2).strip())
+                i += 1
+            blocks.append(BlockQuote(level=level, inline=_parse_inline(" ".join(quote_lines))))
+            continue
+
+        # List item (including task lists)
+        list_m = re.match(r"^(\s*)(?:[-+*]|\d+[.、)）])\s+(\[([ xX])\]\s+)?(.*)$", line)
         if list_m:
             indent = len(list_m.group(1))
-            marker = list_m.group(2)
-            item_text = list_m.group(3)
+            checked = list_m.group(3)
+            item_text = list_m.group(4)
             level = indent // 2
-            ordered = marker[0].isdigit()
+            ordered = re.match(r"^\d+[.、)）]", line.strip()) is not None
+            if checked:
+                prefix = "☑ " if checked.lower() == "x" else "☐ "
+                item_text = prefix + item_text
+            marker = re.match(r"^\s*(?:[-+*]|\d+[.、)）])", line).group(0).strip()
             blocks.append(BlockListItem(
                 level=level, marker=marker, inline=_parse_inline(item_text), ordered=ordered
             ))
+            i += 1
+            continue
+
+        # Horizontal rule (not page break)
+        if stripped == "---" or stripped == "***" or stripped == "___":
             i += 1
             continue
 
@@ -223,7 +263,9 @@ def _is_block_start(line: str) -> bool:
         return True
     if re.match(r"^\s*([-+*]|\d+[.、)）])\s+", s):
         return True
-    if s == "---" or s == "***" or s == "<page-break>":
+    if re.match(r"^>+\s*", s):
+        return True
+    if s == "---" or s == "***" or s == "___" or s == "<page-break>":
         return True
     return False
 
@@ -312,6 +354,8 @@ def _parse_inline(text: str) -> List[InlineElement]:
     patterns = [
         (r"!\[([^\]]*)\]\(([^)]+)\)", "image"),
         (r"\[([^\]]+)\]\(([^)]+)\)", "link"),
+        (r"<u>([^<]+)</u>", "underline"),
+        (r"~~([^~]+?)~~", "strikethrough"),
         (r"\*\*([^\*]+?)\*\*", "bold"),
         (r"\*([^\*]+?)\*", "italic"),
         (r"\$\$([^$]+?)\$\$", "formula_display"),
@@ -348,6 +392,10 @@ def _parse_inline(text: str) -> List[InlineElement]:
             elements.append(InlineImage(alt=best_match.group(1), url=best_match.group(2)))
         elif best_type == "link":
             elements.append(InlineLink(text=best_match.group(1), url=best_match.group(2)))
+        elif best_type == "underline":
+            elements.append(InlineUnderline(best_match.group(1)))
+        elif best_type == "strikethrough":
+            elements.append(InlineStrikethrough(best_match.group(1)))
         elif best_type == "bold":
             elements.append(InlineBold(best_match.group(1)))
         elif best_type == "italic":
