@@ -6,6 +6,7 @@ dist/
 build/
 *.docx
 *.doc
+tests/*.docx
 .vscode/
 .idea/
 *.log

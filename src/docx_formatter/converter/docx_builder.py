@@ -24,6 +24,7 @@ from .markdown_parser import (
 )
 from ..config import TemplateConfig
 from ..formula.mathml_to_omml import mathml_to_omml_element
+from .toc import insert_toc
 
 
 def build_docx(blocks: List[BlockElement], config: TemplateConfig, output_path: str,
@@ -157,6 +158,26 @@ def _render_block(block: BlockElement, ctx: dict):
     config = ctx["config"]
 
     if isinstance(block, BlockHeading):
+        # Detect TOC heading
+        heading_text = "".join(
+            e.text if isinstance(e, InlineText) else
+            e.latex if isinstance(e, InlineFormula) else str(e)
+            for e in block.inline
+        ).strip()
+        if heading_text in ("目录", "目次", "Table of Contents", "Contents") and config.toc_enabled:
+            para = doc.add_paragraph()
+            para.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            para.paragraph_format.first_line_indent = Cm(0)
+            run = para.add_run(heading_text)
+            run.bold = True
+            run.font.size = Pt(config.heading.h1_size_pt)
+            run.font.name = config.font.heading_english
+            _set_east_asia_font(run, config.font.heading_chinese)
+            # Insert TOC field
+            toc_para = doc.add_paragraph()
+            toc_para.paragraph_format.first_line_indent = Cm(0)
+            insert_toc(toc_para, heading_text)
+            return
         para = doc.add_paragraph()
         try:
             para.style = f"Heading {min(block.level, 4)}"
