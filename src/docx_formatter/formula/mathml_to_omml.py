@@ -53,7 +53,33 @@ def _walk(node: etree.Element, parent: etree.Element):
         return
 
     if tag == "mrow":
-        for child in _children(node):
+        kids = _children(node)
+        # Detect fence + mtable pattern (e.g., \begin{cases}, \begin{pmatrix})
+        if len(kids) >= 2 and _local_name(kids[0]) == "mo":
+            mo_attrs = kids[0].attrib
+            if mo_attrs.get("fence") == "true" or mo_attrs.get("stretchy") == "true":
+                # Check if there's an mtable inside
+                mtable_idx = None
+                for idx, k in enumerate(kids):
+                    if _local_name(k) == "mtable":
+                        mtable_idx = idx
+                        break
+                if mtable_idx is not None:
+                    # Prefix fence
+                    prefix_text = _text_content(kids[0]) or kids[0].text or ""
+                    _make_run(parent, prefix_text)
+                    # Process mtable
+                    _walk(kids[mtable_idx], parent)
+                    # Suffix fence (if present after mtable)
+                    if mtable_idx + 1 < len(kids) and _local_name(kids[mtable_idx + 1]) == "mo":
+                        suffix_text = _text_content(kids[mtable_idx + 1]) or kids[mtable_idx + 1].text or ""
+                        _make_run(parent, suffix_text)
+                    # Process any remaining children
+                    for idx in range(1, len(kids)):
+                        if idx != mtable_idx and idx != mtable_idx + 1:
+                            _walk(kids[idx], parent)
+                    return
+        for child in kids:
             _walk(child, parent)
         return
 
@@ -157,6 +183,15 @@ def _walk(node: etree.Element, parent: etree.Element):
                 sup = etree.SubElement(nary, "{%s}sup" % MATH_NS)
                 _walk(kids[1], sup)
                 e = etree.SubElement(nary, "{%s}e" % MATH_NS)
+                _walk(kids[0], e)
+            elif _local_name(kids[1]) == "mo":
+                # Accent: \overline, \hat, \vec, etc.
+                accent_char = _text_content(kids[1]) or kids[1].text or ""
+                acc = etree.SubElement(parent, "{%s}acc" % MATH_NS)
+                accPr = etree.SubElement(acc, "{%s}accPr" % MATH_NS)
+                chr_el = etree.SubElement(accPr, "{%s}chr" % MATH_NS)
+                chr_el.text = accent_char
+                e = etree.SubElement(acc, "{%s}e" % MATH_NS)
                 _walk(kids[0], e)
             else:
                 # fallback: limUpp

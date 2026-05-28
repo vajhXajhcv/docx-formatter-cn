@@ -13,6 +13,7 @@ __version__ = "0.1.0"
 
 from .converter.markdown_parser import parse_markdown
 from .converter.docx_builder import build_docx
+from .formatter import format_existing_docx
 from .config import TemplateConfig, get_preset
 
 
@@ -26,3 +27,14 @@ def convert_markdown_to_docx(
     config = get_preset(template)
     blocks = parse_markdown(md_text)
     build_docx(blocks, config, output_path, image_base_dir=image_base_dir or None)
+
+
+def format_docx(
+    input_path: str,
+    output_path: str,
+    template: str = "课程论文",
+    add_toc: bool = False,
+):
+    """High-level API: Format existing docx with template."""
+    config = get_preset(template)
+    format_existing_docx(input_path, output_path, config, add_toc=add_toc)

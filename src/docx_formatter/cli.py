@@ -30,6 +30,17 @@ def main():
         "--image-dir", default="", help="Base directory for resolving relative image paths"
     )
 
+    # format command
+    format_parser = subparsers.add_parser("format", help="Format existing docx with template")
+    format_parser.add_argument("input", help="Input docx file path")
+    format_parser.add_argument("-o", "--output", required=True, help="Output docx file path")
+    format_parser.add_argument(
+        "-t", "--template", default="课程论文",
+        choices=["课程论文", "毕业论文", "数学建模", "公文", "default"],
+        help="Template preset to apply",
+    )
+    format_parser.add_argument("--add-toc", action="store_true", help="Insert table of contents")
+
     # info command
     info_parser = subparsers.add_parser("info", help="Show template info")
     info_parser.add_argument(
@@ -63,6 +74,17 @@ def main():
         image_dir = args.image_dir or str(input_path.parent)
         build_docx(blocks, config, args.output, image_base_dir=image_dir)
         print(f"Saved: {args.output}")
+        return
+
+    if args.command == "format":
+        from .formatter import format_existing_docx
+        input_path = Path(args.input)
+        if not input_path.exists():
+            print(f"Error: input file not found: {args.input}", file=sys.stderr)
+            sys.exit(1)
+        config = get_preset(args.template)
+        format_existing_docx(str(input_path), args.output, config, add_toc=args.add_toc)
+        print(f"Formatted and saved: {args.output}")
         return
 
 
