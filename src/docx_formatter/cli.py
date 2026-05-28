@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .converter.markdown_parser import parse_markdown
 from .converter.docx_builder import build_docx
-from .config import get_preset
+from .config import get_preset, load_template_from_json, load_template_from_yaml
 
 
 def main():
@@ -27,6 +27,10 @@ def main():
         help="Template preset to use",
     )
     convert_parser.add_argument(
+        "--template-file", default="",
+        help="Custom template JSON/YAML file path (overrides --template)"
+    )
+    convert_parser.add_argument(
         "--image-dir", default="", help="Base directory for resolving relative image paths"
     )
 
@@ -38,6 +42,10 @@ def main():
         "-t", "--template", default="课程论文",
         choices=["课程论文", "毕业论文", "数学建模", "公文", "default"],
         help="Template preset to apply",
+    )
+    format_parser.add_argument(
+        "--template-file", default="",
+        help="Custom template JSON/YAML file path (overrides --template)"
     )
     format_parser.add_argument("--add-toc", action="store_true", help="Insert table of contents")
 
@@ -61,6 +69,22 @@ def main():
         print(f"Heading sizes: H1={cfg.heading.h1_size_pt}pt H2={cfg.heading.h2_size_pt}pt H3={cfg.heading.h3_size_pt}pt")
         return
 
+    def _resolve_config(args):
+        if getattr(args, "template_file", ""):
+            tf = Path(args.template_file)
+            if not tf.exists():
+                print(f"Error: template file not found: {args.template_file}", file=sys.stderr)
+                sys.exit(1)
+            suffix = tf.suffix.lower()
+            if suffix == ".json":
+                return load_template_from_json(str(tf))
+            elif suffix in (".yaml", ".yml"):
+                return load_template_from_yaml(str(tf))
+            else:
+                print("Error: template file must be .json or .yaml", file=sys.stderr)
+                sys.exit(1)
+        return get_preset(args.template)
+
     if args.command == "convert":
         input_path = Path(args.input)
         if not input_path.exists():
@@ -68,7 +92,7 @@ def main():
             sys.exit(1)
 
         md_text = input_path.read_text(encoding="utf-8")
-        config = get_preset(args.template)
+        config = _resolve_config(args)
         blocks = parse_markdown(md_text)
 
         image_dir = args.image_dir or str(input_path.parent)
@@ -82,7 +106,7 @@ def main():
         if not input_path.exists():
             print(f"Error: input file not found: {args.input}", file=sys.stderr)
             sys.exit(1)
-        config = get_preset(args.template)
+        config = _resolve_config(args)
         format_existing_docx(str(input_path), args.output, config, add_toc=args.add_toc)
         print(f"Formatted and saved: {args.output}")
         return

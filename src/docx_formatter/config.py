@@ -107,6 +107,80 @@ def get_preset(name: str) -> TemplateConfig:
     return presets.get(name, presets["default"])
 
 
+def load_template_from_json(path: str) -> TemplateConfig:
+    """Load a TemplateConfig from a JSON file."""
+    import json
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    return _dict_to_config(data)
+
+
+def load_template_from_yaml(path: str) -> TemplateConfig:
+    """Load a TemplateConfig from a YAML file."""
+    import yaml
+    with open(path, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+    return _dict_to_config(data)
+
+
+def _dict_to_config(data: dict) -> TemplateConfig:
+    """Build TemplateConfig from a flat dict with dot-notation keys."""
+    cfg = TemplateConfig(
+        name=data.get("name", "custom"),
+        description=data.get("description", ""),
+    )
+
+    def _set(obj, key, value):
+        parts = key.split(".")
+        for part in parts[:-1]:
+            obj = getattr(obj, part)
+        setattr(obj, parts[-1], value)
+
+    # Page
+    for k in ["width_mm", "height_mm", "margin_top_mm", "margin_bottom_mm",
+              "margin_left_mm", "margin_right_mm", "header_distance_mm", "footer_distance_mm"]:
+        if k in data:
+            _set(cfg, f"page.{k}", data[k])
+
+    # Font
+    for k in ["chinese", "english", "heading_chinese", "heading_english", "code"]:
+        if k in data:
+            _set(cfg, f"font.{k}", data[k])
+
+    # Heading
+    for k in ["h1_size_pt", "h2_size_pt", "h3_size_pt", "h4_size_pt", "bold", "alignment"]:
+        if k in data:
+            _set(cfg, f"heading.{k}", data[k])
+
+    # Body
+    for k in ["size_pt", "line_spacing", "first_line_indent_chars", "alignment"]:
+        if k in data:
+            _set(cfg, f"body.{k}", data[k])
+
+    # Table
+    for k in ["three_line", "header_border_width_pt", "bottom_border_width_pt",
+              "inner_border_width_pt", "font_size_pt", "repeat_header"]:
+        if k in data:
+            _set(cfg, f"table.{k}", data[k])
+
+    # Formula
+    for k in ["font", "number_in_paren"]:
+        if k in data:
+            _set(cfg, f"formula.{k}", data[k])
+
+    # Caption
+    for k in ["figure_prefix", "table_prefix", "font_size_pt", "bold", "alignment"]:
+        if k in data:
+            _set(cfg, f"caption.{k}", data[k])
+
+    # Other top-level
+    for k in ["header_text", "footer_page_number", "toc_enabled"]:
+        if k in data:
+            setattr(cfg, k, data[k])
+
+    return cfg
+
+
 def _course_paper() -> TemplateConfig:
     cfg = TemplateConfig(
         name="课程论文",
