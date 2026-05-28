@@ -12,9 +12,12 @@ from .config import get_preset, load_template_from_json, load_template_from_yaml
 
 
 def main():
+    from . import __version__
     parser = argparse.ArgumentParser(
-        description="docx-formatter-cn: Chinese academic document formatter"
+        description="docx-formatter-cn: Chinese academic document formatter",
+        prog="docx-formatter",
     )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # convert command

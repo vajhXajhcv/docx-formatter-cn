@@ -88,6 +88,39 @@ def _render_meta(doc: Document, meta: Dict[str, Any], config: TemplateConfig):
         run.font.name = config.font.english
         _set_east_asia_font(run, config.font.chinese)
 
+    # Institution / School
+    institution = meta.get("institution") or meta.get("school") or meta.get("单位") or meta.get("学校")
+    if institution:
+        para = doc.add_paragraph()
+        para.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        para.paragraph_format.first_line_indent = Cm(0)
+        run = para.add_run(f"单位：{institution}" if isinstance(institution, str) else f"单位：{', '.join(str(a) for a in institution)}")
+        run.font.size = Pt(config.body.size_pt)
+        run.font.name = config.font.english
+        _set_east_asia_font(run, config.font.chinese)
+
+    # Supervisor / Advisor
+    supervisor = meta.get("supervisor") or meta.get("advisor") or meta.get("导师")
+    if supervisor:
+        para = doc.add_paragraph()
+        para.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        para.paragraph_format.first_line_indent = Cm(0)
+        run = para.add_run(f"导师：{supervisor}" if isinstance(supervisor, str) else f"导师：{', '.join(str(a) for a in supervisor)}")
+        run.font.size = Pt(config.body.size_pt)
+        run.font.name = config.font.english
+        _set_east_asia_font(run, config.font.chinese)
+
+    # Student ID
+    student_id = meta.get("student_id") or meta.get("学号")
+    if student_id:
+        para = doc.add_paragraph()
+        para.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        para.paragraph_format.first_line_indent = Cm(0)
+        run = para.add_run(f"学号：{student_id}")
+        run.font.size = Pt(config.body.size_pt)
+        run.font.name = config.font.english
+        _set_east_asia_font(run, config.font.chinese)
+
     # Date
     date = meta.get("date") or meta.get("日期")
     if date:
@@ -504,29 +537,17 @@ def _render_table(block: BlockTable, ctx: dict):
         _set_table_borders(table, top=True, bottom=True, left=True, right=True, inside_h=True, inside_v=True)
 
     # Header row
+    from .markdown_parser import _parse_inline
     for j, header in enumerate(block.headers):
         cell = table.rows[0].cells[j]
         p = cell.paragraphs[0]
         p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p.paragraph_format.first_line_indent = Cm(0)
-        from .markdown_parser import _parse_inline
         inline_elems = _parse_inline(header)
-        for elem in inline_elems:
-            if isinstance(elem, InlineText):
-                run = p.add_run(elem.text)
-                run.bold = True
-            elif isinstance(elem, InlineBold):
-                run = p.add_run(elem.text)
-                run.bold = True
-            elif isinstance(elem, InlineItalic):
-                run = p.add_run(elem.text)
-                run.bold = True
-                run.italic = True
-            elif isinstance(elem, InlineFormula):
-                _insert_inline_formula(p, elem.latex)
-            else:
-                run = p.add_run(str(elem))
-                run.bold = True
+        _render_inline(inline_elems, p, ctx)
+        # Make all runs in header bold
+        for run in p.runs:
+            run.bold = True
             run.font.size = Pt(tc.font_size_pt)
             run.font.name = config.font.english
             _set_east_asia_font(run, config.font.chinese)
