@@ -58,6 +58,8 @@ class InlineCitation:
 class InlineImage:
     alt: str
     url: str
+    width: Optional[int] = None
+    height: Optional[int] = None
 
 
 @dataclass
@@ -352,7 +354,7 @@ def _parse_inline(text: str) -> List[InlineElement]:
 
     # Regex for all inline patterns (ordered by priority)
     patterns = [
-        (r"!\[([^\]]*)\]\(([^)]+)\)", "image"),
+        (r"!\[([^\]]*)\]\(([^)=\s]+)(?:\s*=\s*(\d+)x(\d+))?\)", "image"),
         (r"\[([^\]]+)\]\(([^)]+)\)", "link"),
         (r"<u>([^<]+)</u>", "underline"),
         (r"~~([^~]+?)~~", "strikethrough"),
@@ -389,7 +391,9 @@ def _parse_inline(text: str) -> List[InlineElement]:
         end = best_start + len(best_match.group(0))
 
         if best_type == "image":
-            elements.append(InlineImage(alt=best_match.group(1), url=best_match.group(2)))
+            w = int(best_match.group(3)) if best_match.group(3) else None
+            h = int(best_match.group(4)) if best_match.group(4) else None
+            elements.append(InlineImage(alt=best_match.group(1), url=best_match.group(2), width=w, height=h))
         elif best_type == "link":
             elements.append(InlineLink(text=best_match.group(1), url=best_match.group(2)))
         elif best_type == "underline":

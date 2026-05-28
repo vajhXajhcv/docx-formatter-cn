@@ -489,7 +489,14 @@ def _render_image(block: BlockImage, ctx: dict):
     try:
         img_path = _resolve_image_path(block.url, ctx.get("image_base_dir") or "")
         run = para.add_run()
-        run.add_picture(str(img_path), width=Inches(4.0))
+        kwargs = {}
+        if block.width:
+            kwargs["width"] = Inches(block.width / 72)
+        elif block.height:
+            kwargs["height"] = Inches(block.height / 72)
+        else:
+            kwargs["width"] = Inches(4.0)
+        run.add_picture(str(img_path), **kwargs)
     except Exception as e:
         para.add_run(f"[Image error: {e}]")
 
@@ -510,7 +517,14 @@ def _render_inline_image(paragraph, elem: InlineImage, ctx: dict):
     try:
         img_path = _resolve_image_path(elem.url, ctx.get("image_base_dir") or "")
         run = paragraph.add_run()
-        run.add_picture(str(img_path), width=Inches(4.0))
+        kwargs = {}
+        if elem.width:
+            kwargs["width"] = Inches(elem.width / 72)
+        elif elem.height:
+            kwargs["height"] = Inches(elem.height / 72)
+        else:
+            kwargs["width"] = Inches(4.0)
+        run.add_picture(str(img_path), **kwargs)
     except Exception as e:
         paragraph.add_run(f"[Image error: {e}]")
 
