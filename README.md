@@ -92,6 +92,24 @@ node skill/scripts/new_doc.js input.md output.docx 课程论文
 
 ## Markdown 语法支持
 
+### YAML Frontmatter（可选）
+
+文件顶部可添加 YAML 元数据，自动生成封面页：
+
+```markdown
+---
+title: 论文标题
+author: 作者姓名
+date: 2026-05-28
+abstract: 这是一段摘要...
+keywords: [关键词1, 关键词2]
+---
+
+# 一级标题
+```
+
+### 正文语法
+
 ```markdown
 # 一级标题
 ## 二级标题
@@ -99,15 +117,15 @@ node skill/scripts/new_doc.js input.md output.docx 课程论文
 
 正文段落，支持**粗体**和*斜体*，<u>下划线</u>，~~删除线~~。
 
-行内代码：`print("hello")`，行内公式：$E = mc^2$
+行内代码：`print("hello")`，行内公式：$E = mc^2$ 或 \(E = mc^2\)
 
 超链接：[点击访问](https://example.com)
 
 块级公式（自动编号）：
 $$Q_n(x, a) = (1 - \alpha_n) Q_{n-1}(x, a) + \alpha_n [r_n + \gamma V_{n-1}(y_n)]$$
 
-分段函数：
-$$f(x) = \begin{cases} x & x \ge 0 \\ -x & x < 0 \end{cases}$$
+或 LaTeX 标准写法：
+\[f(x) = \begin{cases} x & x \ge 0 \\ -x & x < 0 \end{cases}\]
 
 引用上标：本文提出了改进方案[1][2]。
 

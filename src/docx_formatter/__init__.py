@@ -11,7 +11,7 @@ Convert Markdown to beautifully formatted Word documents with:
 
 __version__ = "0.1.0"
 
-from .converter.markdown_parser import parse_markdown
+from .converter.markdown_parser import parse_markdown, parse_markdown_with_meta
 from .converter.docx_builder import build_docx
 from .formatter import format_existing_docx
 from .config import TemplateConfig, get_preset
@@ -25,8 +25,8 @@ def convert_markdown_to_docx(
 ):
     """High-level API: Markdown text → docx file."""
     config = get_preset(template)
-    blocks = parse_markdown(md_text)
-    build_docx(blocks, config, output_path, image_base_dir=image_base_dir or None)
+    meta, blocks = parse_markdown_with_meta(md_text)
+    build_docx(blocks, config, output_path, image_base_dir=image_base_dir or None, meta=meta)
 
 
 def format_docx(

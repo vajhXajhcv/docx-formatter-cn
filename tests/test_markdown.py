@@ -7,7 +7,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from docx_formatter.converter.markdown_parser import (
-    parse_markdown, BlockHeading, BlockParagraph, BlockFormula,
+    parse_markdown, parse_markdown_with_meta, BlockHeading, BlockParagraph, BlockFormula,
     BlockTable, BlockListItem, InlineFormula, InlineCitation, InlineBold,
     InlineCode, InlineLink,
 )
@@ -80,6 +80,43 @@ def test_inline_link():
     assert link_elem.url == "https://example.com"
 
 
+def test_latex_delimiters():
+    # Test with exact string
+    text = "Formula: \\(E=mc^2\\) here."
+    blocks = parse_markdown(text)
+    assert len(blocks) == 1
+    para = blocks[0]
+    types = [type(e).__name__ for e in para.inline]
+    assert "InlineFormula" in types
+    formula = [e for e in para.inline if isinstance(e, InlineFormula)][0]
+    assert formula.latex == "E=mc^2"
+
+    # \\[ ... \\] block
+    blocks = parse_markdown("\\[a^2 + b^2 = c^2\\]")
+    assert len(blocks) == 1
+    assert isinstance(blocks[0], BlockFormula)
+    assert blocks[0].latex == "a^2 + b^2 = c^2"
+
+
+def test_yaml_frontmatter():
+    text = """---
+title: Test Paper
+author: Alice
+date: 2026-05-28
+---
+
+# Introduction
+Hello world.
+"""
+    meta, blocks = parse_markdown_with_meta(text)
+    assert meta.get("title") == "Test Paper"
+    assert meta.get("author") == "Alice"
+    assert str(meta.get("date")) == "2026-05-28"
+    assert len(blocks) == 2
+    assert isinstance(blocks[0], BlockHeading)
+    assert isinstance(blocks[1], BlockParagraph)
+
+
 if __name__ == "__main__":
     test_heading()
     test_paragraph_with_inline()
@@ -88,4 +125,6 @@ if __name__ == "__main__":
     test_list()
     test_inline_code()
     test_inline_link()
+    test_latex_delimiters()
+    test_yaml_frontmatter()
     print("All markdown tests passed!")

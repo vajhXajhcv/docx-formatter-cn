@@ -6,7 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from .converter.markdown_parser import parse_markdown
+from .converter.markdown_parser import parse_markdown, parse_markdown_with_meta
 from .converter.docx_builder import build_docx
 from .config import get_preset, load_template_from_json, load_template_from_yaml
 
@@ -162,10 +162,10 @@ def main():
 
         md_text = input_path.read_text(encoding="utf-8")
         config = _resolve_config(args)
-        blocks = parse_markdown(md_text)
+        meta, blocks = parse_markdown_with_meta(md_text)
 
         image_dir = args.image_dir or str(input_path.parent)
-        build_docx(blocks, config, args.output, image_base_dir=image_dir)
+        build_docx(blocks, config, args.output, image_base_dir=image_dir, meta=meta)
         print(f"Saved: {args.output}")
         return
 
@@ -198,9 +198,9 @@ def main():
             out_file = output_dir / f"{md_file.stem}.docx"
             try:
                 md_text = md_file.read_text(encoding="utf-8")
-                blocks = parse_markdown(md_text)
+                meta, blocks = parse_markdown_with_meta(md_text)
                 image_dir = args.image_dir or str(md_file.parent)
-                build_docx(blocks, config, str(out_file), image_base_dir=image_dir)
+                build_docx(blocks, config, str(out_file), image_base_dir=image_dir, meta=meta)
                 print(f"  [OK] {md_file.name} -> {out_file.name}")
                 success += 1
             except Exception as e:

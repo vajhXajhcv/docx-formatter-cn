@@ -5,7 +5,7 @@ Build a python-docx Document from parsed Markdown AST.
 import os
 import re
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from docx import Document
 from docx.shared import Pt, Mm, Cm, Inches, Emu, Twips
@@ -28,7 +28,8 @@ from .toc import insert_toc
 
 
 def build_docx(blocks: List[BlockElement], config: TemplateConfig, output_path: str,
-               image_base_dir: Optional[str] = None):
+               image_base_dir: Optional[str] = None,
+               meta: Optional[Dict[str, Any]] = None):
     """Build and save a docx from parsed Markdown blocks."""
     doc = Document()
     _setup_page(doc, config)
@@ -51,10 +52,91 @@ def build_docx(blocks: List[BlockElement], config: TemplateConfig, output_path: 
         "figure_counter": figure_counter,
     }
 
+    # Render frontmatter meta info as title page if present
+    if meta:
+        _render_meta(doc, meta, config)
+
     for block in blocks:
         _render_block(block, ctx)
 
     doc.save(output_path)
+
+
+def _render_meta(doc: Document, meta: Dict[str, Any], config: TemplateConfig):
+    """Render YAML frontmatter as a title page at document start."""
+    # Title
+    title = meta.get("title") or meta.get("标题")
+    if title:
+        para = doc.add_paragraph()
+        para.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        para.paragraph_format.first_line_indent = Cm(0)
+        run = para.add_run(str(title))
+        run.bold = True
+        run.font.size = Pt(config.heading.h1_size_pt)
+        run.font.name = config.font.heading_english
+        _set_east_asia_font(run, config.font.heading_chinese)
+        doc.add_paragraph()  # spacing
+
+    # Author
+    author = meta.get("author") or meta.get("作者")
+    if author:
+        para = doc.add_paragraph()
+        para.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        para.paragraph_format.first_line_indent = Cm(0)
+        run = para.add_run(f"作者：{author}" if isinstance(author, str) else f"作者：{', '.join(str(a) for a in author)}")
+        run.font.size = Pt(config.body.size_pt)
+        run.font.name = config.font.english
+        _set_east_asia_font(run, config.font.chinese)
+
+    # Date
+    date = meta.get("date") or meta.get("日期")
+    if date:
+        para = doc.add_paragraph()
+        para.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        para.paragraph_format.first_line_indent = Cm(0)
+        run = para.add_run(f"日期：{date}")
+        run.font.size = Pt(config.body.size_pt)
+        run.font.name = config.font.english
+        _set_east_asia_font(run, config.font.chinese)
+
+    # Abstract
+    abstract = meta.get("abstract") or meta.get("摘要")
+    if abstract:
+        doc.add_paragraph()
+        para = doc.add_paragraph()
+        para.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        para.paragraph_format.first_line_indent = Cm(0)
+        run = para.add_run("摘要")
+        run.bold = True
+        run.font.size = Pt(config.body.size_pt)
+        run.font.name = config.font.heading_english
+        _set_east_asia_font(run, config.font.heading_chinese)
+
+        para2 = doc.add_paragraph()
+        para2.paragraph_format.first_line_indent = Cm(config.body.first_line_indent_chars * 0.35)
+        run2 = para2.add_run(str(abstract))
+        run2.font.size = Pt(config.body.size_pt)
+        run2.font.name = config.font.english
+        _set_east_asia_font(run2, config.font.chinese)
+
+    # Keywords
+    keywords = meta.get("keywords") or meta.get("关键词")
+    if keywords:
+        para = doc.add_paragraph()
+        para.paragraph_format.first_line_indent = Cm(0)
+        kw_text = str(keywords) if isinstance(keywords, str) else ", ".join(str(k) for k in keywords)
+        run = para.add_run(f"关键词：{kw_text}")
+        run.font.size = Pt(config.body.size_pt)
+        run.font.name = config.font.english
+        _set_east_asia_font(run, config.font.chinese)
+
+    if title or author or abstract:
+        # Add page break after title page
+        para = doc.add_paragraph()
+        run = para.add_run()
+        br = OxmlElement("w:br")
+        br.set(qn("w:type"), "page")
+        run._element.append(br)
 
 
 def _setup_page(doc: Document, config: TemplateConfig):

@@ -9,6 +9,8 @@
 - **模板导出 CLI**：新增 `export-template` 子命令，将预设模板导出为 JSON
 - **批量转换**：`batch` 命令支持文件夹级 Markdown → docx 批量处理
 - **图片尺寸控制**：`![alt](url =WxH)` 语法支持精确控制图片宽高
+- **YAML Frontmatter**：自动提取 Markdown 文件顶部的 YAML 元数据（title/author/date/abstract/keywords），渲染为封面页
+- **LaTeX 标准定界符**：支持 `\( ... \)` 行内公式和 `\[ ... \]` 块级公式
 
 ## [0.1.0] - 2026-05-28
 

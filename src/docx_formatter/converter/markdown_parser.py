@@ -2,9 +2,10 @@
 Lightweight Markdown parser for Chinese academic papers.
 
 Supports:
+- YAML frontmatter (title, author, date, abstract)
 - Headings (# ## ###)
 - Paragraphs with inline formatting
-- Block formulas ($$...$$) and inline formulas ($...$)
+- Block formulas ($$...$$, \\[...\\]) and inline formulas ($...$, \\(...\\))
 - Tables (| a | b |)
 - Code blocks (```lang)
 - Lists (-, 1.)
@@ -16,7 +17,13 @@ Supports:
 
 import re
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Dict, Any, Tuple
+
+try:
+    import yaml
+    _HAS_YAML = True
+except Exception:
+    _HAS_YAML = False
 
 
 @dataclass
@@ -142,10 +149,32 @@ BlockElement = (
 )
 
 
-def parse_markdown(text: str) -> List[BlockElement]:
+def parse_markdown_with_meta(text: str) -> Tuple[Dict[str, Any], List[BlockElement]]:
+    """Parse markdown, extracting YAML frontmatter if present."""
     lines = text.splitlines()
-    blocks: List[BlockElement] = []
+    meta: Dict[str, Any] = {}
     i = 0
+
+    # YAML frontmatter: ---\n...\n---
+    if lines and lines[0].strip() == "---":
+        end_idx = None
+        for j in range(1, len(lines)):
+            if lines[j].strip() == "---":
+                end_idx = j
+                break
+        if end_idx is not None and _HAS_YAML:
+            yaml_text = "\n".join(lines[1:end_idx])
+            try:
+                meta = yaml.safe_load(yaml_text) or {}
+                if not isinstance(meta, dict):
+                    meta = {}
+            except Exception:
+                meta = {}
+            i = end_idx + 1
+        elif end_idx is not None:
+            i = end_idx + 1
+
+    blocks: List[BlockElement] = []
     while i < len(lines):
         line = lines[i]
         stripped = line.strip()
@@ -170,7 +199,7 @@ def parse_markdown(text: str) -> List[BlockElement]:
             i += 1
             continue
 
-        # Block formula
+        # Block formula ($$...$$)
         if stripped.startswith("$$"):
             if stripped.endswith("$$") and len(stripped) > 2:
                 latex = stripped[2:-2].strip()
@@ -186,6 +215,28 @@ def parse_markdown(text: str) -> List[BlockElement]:
                 if i < len(lines):
                     last = lines[i].strip()
                     if last.endswith("$$"):
+                        latex_lines.append(last[:-2])
+                    i += 1
+                latex = "\n".join(latex_lines).strip()
+                blocks.append(_parse_block_formula(latex))
+                continue
+
+        # Block formula (\[...\])
+        if stripped.startswith("\\["):
+            if stripped.endswith("\\]") and len(stripped) > 2:
+                latex = stripped[2:-2].strip()
+                blocks.append(_parse_block_formula(latex))
+                i += 1
+                continue
+            else:
+                latex_lines = []
+                i += 1
+                while i < len(lines) and not lines[i].strip().endswith("\\]"):
+                    latex_lines.append(lines[i])
+                    i += 1
+                if i < len(lines):
+                    last = lines[i].strip()
+                    if last.endswith("\\]"):
                         latex_lines.append(last[:-2])
                     i += 1
                 latex = "\n".join(latex_lines).strip()
@@ -259,6 +310,12 @@ def parse_markdown(text: str) -> List[BlockElement]:
         para_text = " ".join(para_lines)
         blocks.append(BlockParagraph(inline=_parse_inline(para_text)))
 
+    return meta, blocks
+
+
+def parse_markdown(text: str) -> List[BlockElement]:
+    """Parse markdown, ignoring frontmatter."""
+    _, blocks = parse_markdown_with_meta(text)
     return blocks
 
 
@@ -367,7 +424,9 @@ def _parse_inline(text: str) -> List[InlineElement]:
         (r"\*\*([^\*]+?)\*\*", "bold"),
         (r"\*([^\*]+?)\*", "italic"),
         (r"\$\$([^$]+?)\$\$", "formula_display"),
+        (r"\\\[([^\\]]+?)\\\]", "formula_display"),
         (r"\$([^$\s][^$]*?)\$", "formula"),
+        (r"\\\(([^\\)]+?)\\\)", "formula"),
         (r"\[(\d+)\]", "citation"),
     ]
 
