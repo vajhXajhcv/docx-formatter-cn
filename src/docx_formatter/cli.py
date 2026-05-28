@@ -49,6 +49,23 @@ def main():
     )
     format_parser.add_argument("--add-toc", action="store_true", help="Insert table of contents")
 
+    # batch command
+    batch_parser = subparsers.add_parser("batch", help="Batch convert all Markdown files in a directory")
+    batch_parser.add_argument("input_dir", help="Input directory containing .md files")
+    batch_parser.add_argument("-o", "--output-dir", required=True, help="Output directory for .docx files")
+    batch_parser.add_argument(
+        "-t", "--template", default="课程论文",
+        choices=["课程论文", "毕业论文", "数学建模", "公文", "default"],
+        help="Template preset to use",
+    )
+    batch_parser.add_argument(
+        "--template-file", default="",
+        help="Custom template JSON/YAML file path (overrides --template)"
+    )
+    batch_parser.add_argument(
+        "--image-dir", default="", help="Base directory for resolving relative image paths"
+    )
+
     # info command
     info_parser = subparsers.add_parser("info", help="Show template info")
     info_parser.add_argument(
@@ -109,6 +126,35 @@ def main():
         config = _resolve_config(args)
         format_existing_docx(str(input_path), args.output, config, add_toc=args.add_toc)
         print(f"Formatted and saved: {args.output}")
+        return
+
+    if args.command == "batch":
+        input_dir = Path(args.input_dir)
+        output_dir = Path(args.output_dir)
+        if not input_dir.exists() or not input_dir.is_dir():
+            print(f"Error: input directory not found: {args.input_dir}", file=sys.stderr)
+            sys.exit(1)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        config = _resolve_config(args)
+        md_files = sorted(input_dir.glob("*.md"))
+        if not md_files:
+            print("No .md files found in input directory.")
+            return
+        success = 0
+        failed = 0
+        for md_file in md_files:
+            out_file = output_dir / f"{md_file.stem}.docx"
+            try:
+                md_text = md_file.read_text(encoding="utf-8")
+                blocks = parse_markdown(md_text)
+                image_dir = args.image_dir or str(md_file.parent)
+                build_docx(blocks, config, str(out_file), image_base_dir=image_dir)
+                print(f"  [OK] {md_file.name} -> {out_file.name}")
+                success += 1
+            except Exception as e:
+                print(f"  [FAIL] {md_file.name}: {e}")
+                failed += 1
+        print(f"\nBatch complete: {success} succeeded, {failed} failed.")
         return
 
 

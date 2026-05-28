@@ -53,8 +53,14 @@ python gui/app.py
 # Markdown 转 Word
 python -m docx_formatter.cli convert input.md -o output.docx -t 课程论文
 
+# 批量转换目录中的所有 Markdown
+python -m docx_formatter.cli batch input_dir/ -o output_dir/ -t 课程论文
+
 # 修正现有 Word 格式
 python -m docx_formatter.cli format input.docx -o output.docx -t 毕业论文 --add-toc
+
+# 使用自定义模板 JSON
+python -m docx_formatter.cli convert input.md -o output.docx --template-file custom.json
 
 # 查看模板信息
 python -m docx_formatter.cli info -t 毕业论文
