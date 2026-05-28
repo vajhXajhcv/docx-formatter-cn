@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from docx_formatter.converter.markdown_parser import (
     parse_markdown, BlockHeading, BlockParagraph, BlockFormula,
     BlockTable, BlockListItem, InlineFormula, InlineCitation, InlineBold,
+    InlineCode, InlineLink,
 )
 
 
@@ -56,10 +57,35 @@ def test_list():
     assert isinstance(blocks[1], BlockListItem)
 
 
+def test_inline_code():
+    blocks = parse_markdown("Use `print()` to output.")
+    assert len(blocks) == 1
+    para = blocks[0]
+    assert isinstance(para, BlockParagraph)
+    types = [type(e).__name__ for e in para.inline]
+    assert "InlineCode" in types
+    code_elem = [e for e in para.inline if isinstance(e, InlineCode)][0]
+    assert code_elem.text == "print()"
+
+
+def test_inline_link():
+    blocks = parse_markdown("See [docs](https://example.com).")
+    assert len(blocks) == 1
+    para = blocks[0]
+    assert isinstance(para, BlockParagraph)
+    types = [type(e).__name__ for e in para.inline]
+    assert "InlineLink" in types
+    link_elem = [e for e in para.inline if isinstance(e, InlineLink)][0]
+    assert link_elem.text == "docs"
+    assert link_elem.url == "https://example.com"
+
+
 if __name__ == "__main__":
     test_heading()
     test_paragraph_with_inline()
     test_formula_block()
     test_table()
     test_list()
+    test_inline_code()
+    test_inline_link()
     print("All markdown tests passed!")

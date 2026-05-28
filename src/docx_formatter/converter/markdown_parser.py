@@ -45,6 +45,11 @@ class InlineStrikethrough:
 
 
 @dataclass
+class InlineCode:
+    text: str
+
+
+@dataclass
 class InlineFormula:
     latex: str
 
@@ -68,7 +73,7 @@ class InlineLink:
     url: str
 
 
-InlineElement = InlineText | InlineBold | InlineItalic | InlineUnderline | InlineStrikethrough | InlineFormula | InlineCitation | InlineImage | InlineLink
+InlineElement = InlineText | InlineBold | InlineItalic | InlineUnderline | InlineStrikethrough | InlineCode | InlineFormula | InlineCitation | InlineImage | InlineLink
 
 
 @dataclass
@@ -356,6 +361,7 @@ def _parse_inline(text: str) -> List[InlineElement]:
     patterns = [
         (r"!\[([^\]]*)\]\(([^)=\s]+)(?:\s*=\s*(\d+)x(\d+))?\)", "image"),
         (r"\[([^\]]+)\]\(([^)]+)\)", "link"),
+        (r"`([^`]+?)`", "code"),
         (r"<u>([^<]+)</u>", "underline"),
         (r"~~([^~]+?)~~", "strikethrough"),
         (r"\*\*([^\*]+?)\*\*", "bold"),
@@ -410,6 +416,8 @@ def _parse_inline(text: str) -> List[InlineElement]:
             elements.append(InlineFormula(best_match.group(1)))
         elif best_type == "citation":
             elements.append(InlineCitation(best_match.group(1)))
+        elif best_type == "code":
+            elements.append(InlineCode(best_match.group(1)))
 
         pos = end
 

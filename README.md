@@ -64,6 +64,9 @@ python -m docx_formatter.cli convert input.md -o output.docx --template-file cus
 
 # 查看模板信息
 python -m docx_formatter.cli info -t 毕业论文
+
+# 导出预设模板为 JSON
+python -m docx_formatter.cli export-template -t 课程论文 -o template.json
 ```
 
 ### Python API
@@ -94,9 +97,11 @@ node skill/scripts/new_doc.js input.md output.docx 课程论文
 ## 二级标题
 ### 三级标题
 
-正文段落，支持**粗体**和*斜体*。
+正文段落，支持**粗体**和*斜体*，<u>下划线</u>，~~删除线~~。
 
-行内公式：$E = mc^2$
+行内代码：`print("hello")`，行内公式：$E = mc^2$
+
+超链接：[点击访问](https://example.com)
 
 块级公式（自动编号）：
 $$Q_n(x, a) = (1 - \alpha_n) Q_{n-1}(x, a) + \alpha_n [r_n + \gamma V_{n-1}(y_n)]$$
@@ -112,6 +117,9 @@ $$f(x) = \begin{cases} x & x \ge 0 \\ -x & x < 0 \end{cases}$$
 | $A$ | 动作空间 |
 
 ![图1](images/fig1.png)
+
+带尺寸控制的图片：
+![图2](images/fig2.png =400x300)
 
 ---
 

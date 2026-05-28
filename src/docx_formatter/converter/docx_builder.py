@@ -19,7 +19,7 @@ from latex2mathml.converter import convert as latex_to_mathml
 from .markdown_parser import (
     BlockElement, BlockHeading, BlockParagraph, BlockFormula,
     BlockTable, BlockCode, BlockQuote, BlockListItem, BlockImage, BlockBlank, BlockPageBreak,
-    InlineElement, InlineText, InlineBold, InlineItalic, InlineUnderline, InlineStrikethrough, InlineFormula,
+    InlineElement, InlineText, InlineBold, InlineItalic, InlineUnderline, InlineStrikethrough, InlineCode, InlineFormula,
     InlineCitation, InlineImage, InlineLink,
 )
 from ..config import TemplateConfig
@@ -280,11 +280,42 @@ def _render_inline(inline: List[InlineElement], para, ctx: dict, skip_first_spac
             _apply_body_font(run, config)
         elif isinstance(elem, InlineImage):
             _render_inline_image(para, elem, ctx)
-        elif isinstance(elem, InlineLink):
+        elif isinstance(elem, InlineCode):
             run = para.add_run(elem.text)
-            run.font.color.rgb = None  # hyperlink blue handled by Word if we add hyperlink properly
-            _apply_body_font(run, config)
-            # Full hyperlink support would require adding a relationship; skip for MVP
+            run.font.name = config.font.code
+            run.font.size = Pt(config.body.size_pt - 1)
+            # Light gray background
+            rpr = run._element.get_or_add_rPr()
+            shd = OxmlElement("w:shd")
+            shd.set(qn("w:val"), "clear")
+            shd.set(qn("w:fill"), "F0F0F0")
+            rpr.append(shd)
+        elif isinstance(elem, InlineLink):
+            _add_hyperlink(para, elem.text, elem.url, config)
+
+
+def _add_hyperlink(paragraph, text: str, url: str, config: TemplateConfig):
+    """Add a real hyperlink to a paragraph."""
+    part = paragraph.part
+    r_id = part.relate_to(url, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink", is_external=True)
+    hyperlink = OxmlElement("w:hyperlink")
+    hyperlink.set(qn("r:id"), r_id)
+    run = OxmlElement("w:r")
+    rpr = OxmlElement("w:rPr")
+    # Blue color
+    color = OxmlElement("w:color")
+    color.set(qn("w:val"), "0563C1")
+    rpr.append(color)
+    # Underline
+    u = OxmlElement("w:u")
+    u.set(qn("w:val"), "single")
+    rpr.append(u)
+    run.append(rpr)
+    t = OxmlElement("w:t")
+    t.text = text
+    run.append(t)
+    hyperlink.append(run)
+    paragraph._element.append(hyperlink)
 
 
 def _apply_body_font(run, config: TemplateConfig):

@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### 新增
+
+- **行内代码**：支持 Markdown 反引号 `` `code` `` 语法，渲染为等宽字体+浅灰背景
+- **真正的超链接**：`[text](url)` 在 Word 中生成可点击的蓝色超链接（带 relationship）
+- **模板导出 CLI**：新增 `export-template` 子命令，将预设模板导出为 JSON
+- **批量转换**：`batch` 命令支持文件夹级 Markdown → docx 批量处理
+- **图片尺寸控制**：`![alt](url =WxH)` 语法支持精确控制图片宽高
+
 ## [0.1.0] - 2026-05-28
 
 ### 新增
