@@ -10,6 +10,7 @@
 | 特性 | 说明 |
 |------|------|
 | 📝 **Markdown → Word** | 一键将 Markdown 转为符合中文学术规范的 `.docx` |
+| 🔄 **修正现有 Word** | 对已有 docx 应用模板样式（页面/字体/段落/页眉页脚） |
 | ➗ **LaTeX 公式** | LaTeX → Word 原生 OMML 公式（可编辑，非图片） |
 | 📊 **三线表** | 自动生成标准学术三线表 |
 | 🔤 **中文字体** | 宋体/黑体 + Cambria Math，中英文混排优化 |
@@ -17,6 +18,7 @@
 | 📑 **目录生成** | 自动插入可更新的 Word 目录域 |
 | 📚 **上标引用** | `[n]` 格式自动转为上标引用 |
 | 🎨 **多模板** | 课程论文、毕业论文、数学建模、公文等预设模板 |
+| 🖥️ **GUI 界面** | PySide6 桌面应用，支持拖拽文件 |
 | 🤖 **AI Skill** | 可作为 AI Agent Skill 调用 |
 
 ## 安装
@@ -37,11 +39,22 @@ pip install -e .
 
 ## 快速开始
 
+### GUI 桌面应用（推荐）
+
+```bash
+python gui/app.py
+```
+
+支持：模板选择、文件拖拽、进度显示、双模式（生成/修正）。
+
 ### 命令行
 
 ```bash
 # Markdown 转 Word
 python -m docx_formatter.cli convert input.md -o output.docx -t 课程论文
+
+# 修正现有 Word 格式
+python -m docx_formatter.cli format input.docx -o output.docx -t 毕业论文 --add-toc
 
 # 查看模板信息
 python -m docx_formatter.cli info -t 毕业论文
@@ -50,12 +63,15 @@ python -m docx_formatter.cli info -t 毕业论文
 ### Python API
 
 ```python
-from docx_formatter import convert_markdown_to_docx
+from docx_formatter import convert_markdown_to_docx, format_docx
 
+# Markdown 转 Word
 with open("论文.md", "r", encoding="utf-8") as f:
     md_text = f.read()
-
 convert_markdown_to_docx(md_text, "output.docx", template="课程论文")
+
+# 修正已有 docx
+format_docx("old.docx", "formatted.docx", template="毕业论文", add_toc=True)
 ```
 
 ### AI Skill 调用
@@ -78,6 +94,9 @@ node skill/scripts/new_doc.js input.md output.docx 课程论文
 
 块级公式（自动编号）：
 $$Q_n(x, a) = (1 - \alpha_n) Q_{n-1}(x, a) + \alpha_n [r_n + \gamma V_{n-1}(y_n)]$$
+
+分段函数：
+$$f(x) = \begin{cases} x & x \ge 0 \\ -x & x < 0 \end{cases}$$
 
 引用上标：本文提出了改进方案[1][2]。
 
@@ -115,6 +134,9 @@ $$Q_n(x, a) = (1 - \alpha_n) Q_{n-1}(x, a) + \alpha_n [r_n + \gamma V_{n-1}(y_n)
 | `\sqrt{x}`, `\sqrt[n]{x}` | 平方根/n次根 |
 | `\sum_{i=1}^{n}`, `\int_{0}^{\infty}` | 求和/积分 |
 | `\alpha`, `\beta`, `\gamma` | 希腊字母 |
+| `\overline{x}`, `\hat{y}`, `\vec{a}` | 重音符号 |
+| `\lim_{x \to \infty}` | 极限 |
+| `\begin{cases} ... \end{cases}` | 分段函数 |
 | `\begin{matrix} ... \end{matrix}` | 矩阵 |
 
 ## 项目架构
@@ -122,20 +144,24 @@ $$Q_n(x, a) = (1 - \alpha_n) Q_{n-1}(x, a) + \alpha_n [r_n + \gamma V_{n-1}(y_n)
 ```
 docx-formatter-cn/
 ├── src/docx_formatter/
-│   ├── converter/          # Markdown 解析 + docx 构建
+│   ├── converter/          # Markdown 解析 + docx 构建 + 目录
 │   │   ├── markdown_parser.py
 │   │   ├── docx_builder.py
-│   │   └── toc.py          # 目录域生成
+│   │   └── toc.py
 │   ├── formula/            # LaTeX → MathML → OMML 公式引擎
 │   │   └── mathml_to_omml.py
 │   ├── templates/          # 模板预设（预留）
 │   ├── cli.py              # 命令行入口
+│   ├── formatter.py        # 现有 docx 修正
 │   └── config.py           # 配置系统
+├── gui/
+│   └── app.py              # PySide6 桌面应用
 ├── skill/
 │   ├── SKILL.md            # AI Skill 使用文档
 │   └── scripts/
 │       └── new_doc.js      # Node.js 封装
-├── tests/                  # 测试样例
+├── tests/                  # 单元测试
+├── .github/workflows/      # CI 配置
 ├── pyproject.toml
 ├── requirements.txt
 └── README.md
@@ -173,9 +199,12 @@ docx-formatter-cn/
 - [x] CLI 命令行工具
 - [x] AI Skill 封装
 - [x] 目录域生成
-- [ ] PySide6 GUI（可选）
-- [ ] 现有 docx 格式修正（Pipeline 规则引擎）
-- [ ] 更多 LaTeX 公式支持（矩阵、分段函数等）
+- [x] PySide6 GUI（支持生成/修正双模式）
+- [x] 现有 docx 格式修正（样式统一）
+- [x] 增强公式（分段函数、极限、重音符号）
+- [x] 单元测试 + CI
+- [ ] 更多 Pipeline 规则（标题识别、图表题注修正等）
+- [ ] 自定义模板 JSON/YAML 文件热加载
 
 ## 开源协议
 
